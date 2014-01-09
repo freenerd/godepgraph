@@ -20,11 +20,13 @@ var (
 	ignoredPrefixes  []string
 	includedPackages []string
 
-	ignoreStdlib    = flag.Bool("s", false, "ignore packages in the go standard library")
-	ignorePrefixes  = flag.String("p", "", "a comma-separated list of prefixes to ignore")
-	ignorePackages  = flag.String("i", "", "a comma-separated list of packages to ignore")
-	basePath        = flag.String("b", "", "the base path of the package. if this is set, all non-base path packages will be ignored")
-	includePackages = flag.String("n", "", "a comma-separated list of packages to always include, even if ignored before")
+	ignoreStdlib     = flag.Bool("s", false, "ignore packages in the go standard library")
+	ignorePrefixes   = flag.String("p", "", "a comma-separated list of prefixes to ignore")
+	ignorePackages   = flag.String("i", "", "a comma-separated list of packages to ignore")
+	basePath         = flag.String("b", "", "the base path of the package. if this is set, all non-base path packages will be ignored")
+	includePackages  = flag.String("n", "", "a comma-separated list of packages to always include, even if ignored before")
+	subgraph         = flag.Bool("subgraph", false, "put graph into a subgraph box")
+	networkSubgraphs = flag.Bool("network-subgraphs", false, "for each always included package, put an own external subgraph. requires subgraph to be set")
 )
 
 func main() {
@@ -60,6 +62,14 @@ func main() {
 	}
 
 	fmt.Println("digraph godep {")
+
+	if *subgraph && *basePath != "" {
+		fmt.Printf("subgraph \"cluster%s\" {\n", *basePath)
+		fmt.Println("style=filled;")
+		fmt.Println("color=lightgrey;")
+		fmt.Printf("label=\"%s\"\n", *basePath)
+	}
+
 	for pkgName, pkg := range pkgs {
 		pkgId := getId(pkgName)
 
@@ -95,6 +105,11 @@ func main() {
 			fmt.Printf("%d -> %d;\n", pkgId, impId)
 		}
 	}
+
+	if *subgraph && *basePath != "" {
+		fmt.Println("}")
+	}
+
 	fmt.Println("}")
 }
 
