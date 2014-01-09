@@ -10,9 +10,10 @@ import (
 )
 
 var (
-	pkgs   map[string]*build.Package
-	ids    map[string]int
-	nextId int
+	pkgs            map[string]*build.Package
+	ids             map[string]int
+	networkPackages map[string]int
+	nextId          int
 
 	ignored = map[string]bool{
 		"C": true,
@@ -32,6 +33,7 @@ var (
 func main() {
 	pkgs = make(map[string]*build.Package)
 	ids = make(map[string]int)
+	networkPackages = make(map[string]int)
 	flag.Parse()
 
 	args := flag.Args()
@@ -64,10 +66,7 @@ func main() {
 	fmt.Println("digraph godep {")
 
 	if *subgraph && *basePath != "" {
-		fmt.Printf("subgraph \"cluster%s\" {\n", *basePath)
-		fmt.Println("style=filled;")
-		fmt.Println("color=lightgrey;")
-		fmt.Printf("label=\"%s\"\n", *basePath)
+		printSubgraphHead(*basePath)
 	}
 
 	for pkgName, pkg := range pkgs {
@@ -88,7 +87,7 @@ func main() {
 			color = "paleturquoise"
 		}
 
-		fmt.Printf("%d [label=\"%s\" style=\"filled\" color=\"%s\"];\n", pkgId, pkgName, color)
+		printNode(pkgName, color)
 
 		// Don't render imports from packages in Goroot
 		if pkg.Goroot {
@@ -102,12 +101,29 @@ func main() {
 			}
 
 			impId := getId(imp)
-			fmt.Printf("%d -> %d;\n", pkgId, impId)
+			printEdge(pkgId, impId)
+		}
+
+		// check if we need to build a network subgraph for this node later
+		if *networkSubgraphs && hasPrefixes(pkg.ImportPath, includedPackages) {
+			networkPackages[pkgName] = pkgId
 		}
 	}
 
 	if *subgraph && *basePath != "" {
 		fmt.Println("}")
+	}
+
+	for pkgName, pkgId := range networkPackages {
+		// make subgraph
+		nameSplit := strings.Split(pkgName, "/")
+		name := nameSplit[len(nameSplit)-1]
+		printSubgraphHead(name)
+		printNode(name, "paleturquoise")
+		fmt.Println("}")
+
+		// make edge
+		printEdge(pkgId, getId(name))
 	}
 
 	fmt.Println("}")
@@ -173,6 +189,21 @@ func isIgnored(pkg *build.Package) bool {
 
 func isNotOfBasepath(importPath, basePath string) bool {
 	return basePath != "" && !strings.HasPrefix(importPath, basePath)
+}
+
+func printSubgraphHead(name string) {
+	fmt.Printf("subgraph \"cluster%s\" {\n", name)
+	fmt.Println("style=filled;")
+	fmt.Println("color=lightgrey;")
+	fmt.Printf("label=\"%s\"\n", name)
+}
+
+func printNode(name, color string) {
+	fmt.Printf("%d [label=\"%s\" style=\"filled\" color=\"%s\"];\n", getId(name), name, color)
+}
+
+func printEdge(source, dest int) {
+	fmt.Printf("%d -> %d;\n", source, dest)
 }
 
 func debug(args ...interface{}) {
