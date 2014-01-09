@@ -17,11 +17,14 @@ var (
 	ignored = map[string]bool{
 		"C": true,
 	}
-	ignoredPrefixes []string
+	ignoredPrefixes  []string
+	includedPackages []string
 
-	ignoreStdlib   = flag.Bool("s", false, "ignore packages in the go standard library")
-	ignorePrefixes = flag.String("p", "", "a comma-separated list of prefixes to ignore")
-	ignorePackages = flag.String("i", "", "a comma-separated list of packages to ignore")
+	ignoreStdlib    = flag.Bool("s", false, "ignore packages in the go standard library")
+	ignorePrefixes  = flag.String("p", "", "a comma-separated list of prefixes to ignore")
+	ignorePackages  = flag.String("i", "", "a comma-separated list of packages to ignore")
+	basePath        = flag.String("b", "", "the base path of the package. if this is set, all non-base path packages will be ignored")
+	includePackages = flag.String("n", "", "a comma-separated list of packages to always include, even if ignored before")
 )
 
 func main() {
@@ -42,6 +45,10 @@ func main() {
 		for _, p := range strings.Split(*ignorePackages, ",") {
 			ignored[p] = true
 		}
+	}
+
+	if *includePackages != "" {
+		includedPackages = strings.Split(*includePackages, ",")
 	}
 
 	cwd, err := os.Getwd()
@@ -65,6 +72,8 @@ func main() {
 			color = "palegreen"
 		} else if len(pkg.CgoFiles) > 0 {
 			color = "darkgoldenrod1"
+		} else if hasPrefixes(pkg.ImportPath, includedPackages) {
+			color = "violet"
 		} else {
 			color = "paleturquoise"
 		}
@@ -140,7 +149,15 @@ func hasPrefixes(s string, prefixes []string) bool {
 }
 
 func isIgnored(pkg *build.Package) bool {
-	return ignored[pkg.ImportPath] || (pkg.Goroot && *ignoreStdlib) || hasPrefixes(pkg.ImportPath, ignoredPrefixes)
+	return !hasPrefixes(pkg.ImportPath, includedPackages) &&
+		(ignored[pkg.ImportPath] ||
+			(pkg.Goroot && *ignoreStdlib) ||
+			hasPrefixes(pkg.ImportPath, ignoredPrefixes) ||
+			isNotOfBasepath(pkg.ImportPath, *basePath))
+}
+
+func isNotOfBasepath(importPath, basePath string) bool {
+	return basePath != "" && !strings.HasPrefix(importPath, basePath)
 }
 
 func debug(args ...interface{}) {
