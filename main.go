@@ -20,12 +20,13 @@ var (
 	}
 	ignoredPrefixes  []string
 	includedPackages []string
+	basePath         string
 
 	ignoreStdlib     = flag.Bool("s", false, "ignore packages in the go standard library")
 	ignorePrefixes   = flag.String("p", "", "a comma-separated list of prefixes to ignore")
 	ignorePackages   = flag.String("i", "", "a comma-separated list of packages to ignore")
-	basePath         = flag.String("b", "", "the base path of the package. if this is set, all non-base path packages will be ignored")
 	includePackages  = flag.String("n", "", "a comma-separated list of packages to always include, even if ignored before")
+	filterByBasePath = flag.Bool("b", false, "filer only for packages that are in the base path. other packages will be ignored except i they are in includePackages")
 	subgraph         = flag.Bool("subgraph", false, "put graph into a subgraph box")
 	networkSubgraphs = flag.Bool("network-subgraphs", false, "for each always included package, put an own external subgraph. requires subgraph to be set")
 )
@@ -50,7 +51,6 @@ func main() {
 			ignored[p] = true
 		}
 	}
-
 	if *includePackages != "" {
 		includedPackages = strings.Split(*includePackages, ",")
 	}
@@ -65,8 +65,8 @@ func main() {
 
 	fmt.Println("digraph godep {")
 
-	if *subgraph && *basePath != "" {
-		printSubgraphHead(*basePath)
+	if *subgraph && basePath != "" {
+		printSubgraphHead(basePath)
 	}
 
 	for pkgName, pkg := range pkgs {
@@ -110,7 +110,7 @@ func main() {
 		}
 	}
 
-	if *subgraph && *basePath != "" {
+	if *subgraph && basePath != "" {
 		fmt.Println("}")
 	}
 
@@ -141,6 +141,14 @@ func processPackage(root string, pkgName string) error {
 
 	if isIgnored(pkg) {
 		return nil
+	}
+
+	if *filterByBasePath && basePath == "" {
+		// basePath has not been set yet
+		// we assume that the first package we encouter is the root node
+		// we assume that the base path is the root node's parent directory
+		basePathSplit := strings.Split(pkg.ImportPath, "/")
+		basePath = strings.Join(basePathSplit[0:len(basePathSplit)-1], "/")
 	}
 
 	pkgs[pkg.ImportPath] = pkg
@@ -184,7 +192,7 @@ func isIgnored(pkg *build.Package) bool {
 		(ignored[pkg.ImportPath] ||
 			(pkg.Goroot && *ignoreStdlib) ||
 			hasPrefixes(pkg.ImportPath, ignoredPrefixes) ||
-			isNotOfBasepath(pkg.ImportPath, *basePath))
+			isNotOfBasepath(pkg.ImportPath, basePath))
 }
 
 func isNotOfBasepath(importPath, basePath string) bool {
