@@ -102,7 +102,9 @@ func main() {
 		}
 
 		// check if we need to build a network subgraph for this node later
-		if *networkSubgraphs && hasPrefixes(pkg.ImportPath, includedPackages) {
+		if (*networkSubgraphs &&
+        hasPrefixes(pkg.ImportPath, includedPackages) &&
+        !strings.HasPrefix(pkg.ImportPath, basePath) ) {
 			networkPackages[pkgName] = pkgId
 		}
 	}
