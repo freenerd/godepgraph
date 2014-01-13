@@ -102,9 +102,9 @@ func main() {
 		}
 
 		// check if we need to build a network subgraph for this node later
-		if (*networkSubgraphs &&
-        hasPrefixes(pkg.ImportPath, includedPackages) &&
-        !strings.HasPrefix(pkg.ImportPath, basePath) ) {
+		if *networkSubgraphs &&
+			hasPrefixes(pkg.ImportPath, includedPackages) &&
+			!strings.HasPrefix(pkg.ImportPath, basePath) {
 			networkPackages[pkgName] = pkgId
 		}
 	}
@@ -168,11 +168,11 @@ func processPackage(root string, pkgName string) error {
 }
 
 func sanitizeCSV(csv string) []string {
-  output := strings.Split(csv, ",")
-  for i, v := range(output) {
-    output[i] = strings.ToLower(strings.TrimSpace(v))
-  }
-  return output
+	output := strings.Split(csv, ",")
+	for i, v := range output {
+		output[i] = strings.ToLower(strings.TrimSpace(v))
+	}
+	return output
 }
 
 func hasPrefixes(s string, prefixes []string) bool {
@@ -213,7 +213,7 @@ func printEdge(source, dest string) {
 
 // namespace all nodes with basePath to unique nodes when combining several graphs
 func ns(name string) string {
-  return fmt.Sprintf("%s:%s", basePath, name)
+	return fmt.Sprintf("%s:%s", basePath, name)
 }
 
 func debug(args ...interface{}) {
