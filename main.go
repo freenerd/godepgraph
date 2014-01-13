@@ -44,15 +44,15 @@ func main() {
 	}
 
 	if *ignorePrefixes != "" {
-		ignoredPrefixes = strings.Split(*ignorePrefixes, ",")
+		ignoredPrefixes = sanitizeCSV(*ignorePrefixes)
 	}
 	if *ignorePackages != "" {
-		for _, p := range strings.Split(*ignorePackages, ",") {
+		for _, p := range sanitizeCSV(*ignorePackages) {
 			ignored[p] = true
 		}
 	}
 	if *includePackages != "" {
-		includedPackages = strings.Split(*includePackages, ",")
+		includedPackages = sanitizeCSV(*includePackages)
 	}
 
 	cwd, err := os.Getwd()
@@ -91,7 +91,7 @@ func main() {
 
 		// Don't render imports from packages in Goroot
 		if pkg.Goroot {
-			continue
+			//continue
 		}
 
 		for _, imp := range pkg.Imports {
@@ -166,6 +166,14 @@ func processPackage(root string, pkgName string) error {
 		}
 	}
 	return nil
+}
+
+func sanitizeCSV(csv string) []string {
+  output := strings.Split(csv, ",")
+  for i, v := range(output) {
+    output[i] = strings.ToLower(strings.TrimSpace(v))
+  }
+  return output
 }
 
 func getId(name string) int {
