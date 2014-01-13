@@ -11,9 +11,7 @@ import (
 
 var (
 	pkgs            map[string]*build.Package
-	ids             map[string]int
-	networkPackages map[string]int
-	nextId          int
+	networkPackages map[string]string
 
 	ignored = map[string]bool{
 		"C": true,
@@ -26,15 +24,14 @@ var (
 	ignorePrefixes   = flag.String("p", "", "a comma-separated list of prefixes to ignore")
 	ignorePackages   = flag.String("i", "", "a comma-separated list of packages to ignore")
 	includePackages  = flag.String("n", "", "a comma-separated list of packages to always include, even if ignored before")
-	filterByBasePath = flag.Bool("b", false, "filer only for packages that are in the base path. other packages will be ignored except i they are in includePackages")
+	filterByBasePath = flag.Bool("b", false, "filer only for packages that are in the base path. other packages will be ignored except i if in includePackages")
 	subgraph         = flag.Bool("subgraph", false, "put graph into a subgraph box")
 	networkSubgraphs = flag.Bool("network-subgraphs", false, "for each always included package, put an own external subgraph. requires subgraph to be set")
 )
 
 func main() {
 	pkgs = make(map[string]*build.Package)
-	ids = make(map[string]int)
-	networkPackages = make(map[string]int)
+	networkPackages = make(map[string]string)
 	flag.Parse()
 
 	args := flag.Args()
@@ -70,7 +67,7 @@ func main() {
 	}
 
 	for pkgName, pkg := range pkgs {
-		pkgId := getId(pkgName)
+		pkgId := pkgName
 
 		if isIgnored(pkg) {
 			continue
@@ -100,7 +97,7 @@ func main() {
 				continue
 			}
 
-			impId := getId(imp)
+			impId := imp
 			printEdge(pkgId, impId)
 		}
 
@@ -123,7 +120,7 @@ func main() {
 		fmt.Println("}")
 
 		// make edge
-		printEdge(pkgId, getId(name))
+		printEdge(pkgId, name)
 	}
 
 	fmt.Println("}")
@@ -143,7 +140,7 @@ func processPackage(root string, pkgName string) error {
 		return nil
 	}
 
-	if *filterByBasePath && basePath == "" {
+	if basePath == "" {
 		// basePath has not been set yet
 		// we assume that the first package we encouter is the root node
 		// we assume that the base path is the root node's parent directory
@@ -176,16 +173,6 @@ func sanitizeCSV(csv string) []string {
   return output
 }
 
-func getId(name string) int {
-	id, ok := ids[name]
-	if !ok {
-		id = nextId
-		nextId++
-		ids[name] = id
-	}
-	return id
-}
-
 func hasPrefixes(s string, prefixes []string) bool {
 	for _, p := range prefixes {
 		if strings.HasPrefix(s, p) {
@@ -204,7 +191,7 @@ func isIgnored(pkg *build.Package) bool {
 }
 
 func isNotOfBasepath(importPath, basePath string) bool {
-	return basePath != "" && !strings.HasPrefix(importPath, basePath)
+	return *filterByBasePath && !strings.HasPrefix(importPath, basePath)
 }
 
 func printSubgraphHead(name string) {
@@ -215,11 +202,16 @@ func printSubgraphHead(name string) {
 }
 
 func printNode(name, color string) {
-	fmt.Printf("%d [label=\"%s\" style=\"filled\" color=\"%s\"];\n", getId(name), name, color)
+	fmt.Printf("\"%s\" [label=\"%s\" style=\"filled\" color=\"%s\"];\n", ns(name), name, color)
 }
 
-func printEdge(source, dest int) {
-	fmt.Printf("%d -> %d;\n", source, dest)
+func printEdge(source, dest string) {
+	fmt.Printf("\"%s\" -> \"%s\";\n", ns(source), ns(dest))
+}
+
+// namespace all nodes with basePath to unique nodes when combining several graphs
+func ns(name string) string {
+  return fmt.Sprintf("%s:%s", basePath, name)
 }
 
 func debug(args ...interface{}) {
